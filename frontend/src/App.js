@@ -7,18 +7,28 @@ function App() {
   const [products, setProducts] = useState([]); // Store all products data
   const [filteredProducts, setFilteredProducts] = useState([]); // Store filtered products
   const [categoryFilter, setCategoryFilter] = useState('all'); // Store selected category
+  const [loading, setLoading] = useState(true);  // Track loading state
+  const [error, setError] = useState(null);  // Track error state
 
   // Fetch data from Flask backend when the component mounts
   useEffect(() => {
-    fetch('http://127.0.0.1:5001/insights')
-      .then(response => response.json())
+    fetch('http://192.168.1.159:5001/insights')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch data');
+        }
+        return response.json();
+      })
       .then(data => {
         setInsights(data);  // Store the insights in the state
         setProducts(data);  // Store the products data for filtering
         setFilteredProducts(data);  // Initially set filtered products to all products
+        setLoading(false);  // Data loaded, set loading to false
       })
       .catch((error) => {
         console.error('Error fetching data:', error);
+        setError(error);  // Set error if fetching fails
+        setLoading(false);  // Stop loading on error
       });
   }, []);
 
@@ -63,15 +73,17 @@ function App() {
       {/* Display insights */}
       <div>
         <h2>Trending Insights</h2>
-        {insights.length > 0 ? (
+        {loading ? (
+          <p>Loading insights...</p>  // Display loading message
+        ) : error ? (
+          <p>Error loading insights: {error.message}</p>  // Display error message
+        ) : (
           insights.map((insight) => (
             <div key={insight.title}>
               <h3>{insight.title}</h3>
               <p>Predicted Popularity: {insight.predicted_popularity}</p>
             </div>
           ))
-        ) : (
-          <p>Loading insights...</p>
         )}
       </div>
 

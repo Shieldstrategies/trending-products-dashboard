@@ -40,43 +40,39 @@ def home():
 @app.route('/insights', methods=['GET'])
 def get_trending_insights():
     try:
-        # Convert sample data to DataFrame
-        df = pd.DataFrame(sample_data)
+        # Step 1: Load and preprocess data
+        product_data = pd.DataFrame(sample_data)
 
-        # One-Hot Encoding for 'category' feature (converts category into binary columns)
-        df = pd.get_dummies(df, columns=['category'], drop_first=True)
+        # One-Hot Encoding for 'category' feature
+        product_data = pd.get_dummies(product_data, columns=['category'], drop_first=True)
 
-        # Print out columns to debug
-        print("DataFrame columns after get_dummies:", df.columns)
-
-        # Normalize data for better processing
+        # Normalize the 'price' and 'rating' columns for better model performance
         scaler = MinMaxScaler()
-        df[['price', 'rating']] = scaler.fit_transform(df[['price', 'rating']])
+        product_data[['price', 'rating']] = scaler.fit_transform(product_data[['price', 'rating']])
 
-        # Create a simple Random Forest model to predict "popularity"
-        df['popularity'] = df['rating'] * df['price'] * 100  # Fake popularity score
+        # Step 2: Generate a fake popularity score (for illustration purposes)
+        product_data['popularity'] = product_data['rating'] * product_data['price'] * 100  # Fake popularity score
+
+        # Step 3: Train a Random Forest model
+        model = RandomForestRegressor(n_estimators=100, random_state=42)
         
-        model = RandomForestRegressor(n_estimators=100, random_state=42)  # Random Forest model
+        # Select features and target for model training
+        category_columns = [col for col in product_data.columns if 'category_' in col]
+        X = product_data[['price', 'rating'] + category_columns]
+        y = product_data['popularity']
 
-        # Dynamically select columns based on the actual column names
-        category_columns = [col for col in df.columns if 'category_' in col]
-        X = df[['price', 'rating'] + category_columns]
-        y = df['popularity']
+        model.fit(X, y)  # Train model
 
-        model.fit(X, y)
-
-        # Predict future popularity
-        df['predicted_popularity'] = model.predict(X)
-
-        # Format insights for frontend
-        insights = df[['title', 'predicted_popularity']].to_dict(orient='records')
+        # Step 4: Make predictions and prepare insights data for the frontend
+        product_data['predicted_popularity'] = model.predict(X)
+        insights = product_data[['title', 'predicted_popularity']].to_dict(orient='records')
 
         # Return insights as JSON
         return jsonify(insights)
     
     except Exception as e:
-        # Log the error and return a response
-        print(f"Error: {e}")
+        # Log error and return message to the client
+        app.logger.error(f"Error processing insights: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Start Flask server
